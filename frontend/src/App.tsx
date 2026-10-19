@@ -9,6 +9,11 @@ import { PoolingPage } from './pages/PoolingPage';
 import { AgentDashboard } from './pages/AgentDashboard';
 import { TransporterDashboard } from './pages/TransporterDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { FarmerLandingPage } from './pages/FarmerLandingPage';
+import { BuyerLandingPage } from './pages/BuyerLandingPage';
+import { AgentLandingPage } from './pages/AgentLandingPage';
+import { TransporterLandingPage } from './pages/TransporterLandingPage';
+import { AdminLandingPage } from './pages/AdminLandingPage';
 import { AccessDenied } from './components/AccessDenied';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { CartDrawer } from './components/CartDrawer';
@@ -80,11 +85,11 @@ const AppContent: React.FC = () => {
 
   // Role-based Router matching
   const renderCurrentRoute = () => {
-    // 1. Farmer Dashboard Route
+    // 1. Farmer Dashboard Route → FarmerLandingPage
     if (cleanPath === '/farmer/dashboard') {
       if (user?.role === 'farmer' || user?.role === 'admin') {
         return (
-          <FarmerDashboard
+          <FarmerLandingPage
             onOpenListingModal={() => setIsListingModalOpen(true)}
             onOpenProfitModal={() => setIsProfitModalOpen(true)}
             onOpenFairPriceModal={() => setIsFairPriceModalOpen(true)}
@@ -94,34 +99,34 @@ const AppContent: React.FC = () => {
       return <AccessDenied requiredRole="farmer" onOpenAuthModal={() => openAuth('login')} />;
     }
 
-    // 2. Buyer Dashboard Route
+    // 2. Buyer Dashboard Route → BuyerLandingPage
     if (cleanPath === '/buyer/dashboard') {
       if (user?.role === 'buyer' || user?.role === 'admin') {
-        return <BuyerMarketplace isDashboardView={true} />;
+        return <BuyerLandingPage />;
       }
       return <AccessDenied requiredRole="buyer" onOpenAuthModal={() => openAuth('login')} />;
     }
 
-    // 3. Village Agent Dashboard Route
+    // 3. Village Agent Dashboard Route → AgentLandingPage
     if (cleanPath === '/agent/dashboard') {
       if (user?.role === 'agent' || user?.role === 'admin') {
-        return <AgentDashboard onOpenListingModal={() => setIsListingModalOpen(true)} />;
+        return <AgentLandingPage />;
       }
       return <AccessDenied requiredRole="agent" onOpenAuthModal={() => openAuth('login')} />;
     }
 
-    // 4. Transporter Dashboard Route
+    // 4. Transporter Dashboard Route → TransporterLandingPage
     if (cleanPath === '/transporter/dashboard') {
       if (user?.role === 'transporter' || user?.role === 'admin') {
-        return <TransporterDashboard />;
+        return <TransporterLandingPage />;
       }
       return <AccessDenied requiredRole="transporter" onOpenAuthModal={() => openAuth('login')} />;
     }
 
-    // 5. Admin Dashboard Route
+    // 5. Admin Dashboard Route → AdminLandingPage
     if (cleanPath === '/admin/dashboard') {
       if (user?.role === 'admin') {
-        return <AdminDashboard />;
+        return <AdminLandingPage />;
       }
       return <AccessDenied requiredRole="admin" onOpenAuthModal={() => openAuth('login')} />;
     }
