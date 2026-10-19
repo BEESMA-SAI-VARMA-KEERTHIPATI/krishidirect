@@ -175,6 +175,7 @@ const AppContent: React.FC = () => {
         onOpenListingModal={() => setIsListingModalOpen(true)}
         onOpenProfitModal={() => setIsProfitModalOpen(true)}
         onOpenFairPriceModal={() => setIsFairPriceModalOpen(true)}
+        onOpenAuthModal={openAuth}
       />
     );
   };

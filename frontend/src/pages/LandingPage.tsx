@@ -13,6 +13,7 @@ interface LandingPageProps {
   onOpenListingModal: () => void;
   onOpenProfitModal: () => void;
   onOpenFairPriceModal: () => void;
+  onOpenAuthModal?: (mode?: 'login' | 'register') => void;
 }
 
 /* ── Shared hooks ── */
@@ -68,7 +69,7 @@ const FloatingParticles: React.FC = () => (
 );
 
 export const LandingPage: React.FC<LandingPageProps> = ({
-  onOpenListingModal, onOpenProfitModal, onOpenFairPriceModal,
+  onOpenListingModal, onOpenProfitModal, onOpenFairPriceModal, onOpenAuthModal,
 }) => {
   const { user, navigate, addToCart, setIsVoiceOpen, setActiveTab } = useAuth();
   const [featuredListings, setFeaturedListings] = useState<ProduceListing[]>([]);
@@ -373,7 +374,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div key={label}
               className="role-card bg-white rounded-3xl overflow-hidden cursor-pointer group"
               style={{ animation: `fadeInUp 0.6s ease ${0.1 + i * 0.12}s both` }}
-              onClick={() => navigate(path)}>
+              onClick={() => {
+                if (path === '/marketplace') {
+                  navigate(path);
+                } else if (user) {
+                  navigate(path);
+                } else if (onOpenAuthModal) {
+                  onOpenAuthModal('login');
+                } else {
+                  navigate(path);
+                }
+              }}>
               {/* Card image */}
               <div className="relative h-44 overflow-hidden">
                 <img src={img} alt={label} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-600" />
@@ -611,7 +622,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               { label: 'Agent Login', path: '/agent/dashboard' },
               { label: 'Transporter Login', path: '/transporter/dashboard' },
             ].map(({ label, path }) => (
-              <button key={label} onClick={() => navigate(path)}
+              <button key={label} onClick={() => {
+                if (user) {
+                  navigate(path);
+                } else if (onOpenAuthModal) {
+                  onOpenAuthModal('login');
+                } else {
+                  navigate(path);
+                }
+              }}
                 className="px-4 py-2 bg-white/8 hover:bg-white/15 border border-white/15 text-white/70 hover:text-white text-xs font-semibold rounded-xl transition-all duration-200">
                 {label}
               </button>
