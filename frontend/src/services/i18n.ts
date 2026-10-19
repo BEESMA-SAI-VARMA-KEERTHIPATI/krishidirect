@@ -37,7 +37,7 @@ export const translations = {
     freightSavings: "Freight Cost Saved",
     fairPriceInsight: "AI Fair-Price Advisory",
     calculateNetProfit: "Calculate Net Profit",
-    demoAccountNotice: "Demo Sandbox Active — Switch role accounts with 1 click below:",
+    demoAccountNotice: "KrishiDirect Role Security Active",
   },
   hi: {
     appName: "कृषि डायरेक्ट",

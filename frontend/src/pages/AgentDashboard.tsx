@@ -12,15 +12,25 @@ import {
   Clock,
   MapPin,
   Sparkles,
+  Truck,
+  FileCheck2,
+  Phone,
+  Package,
+  Sprout,
+  X,
 } from 'lucide-react';
 
-export const AgentDashboard: React.FC = () => {
-  const { user, setActiveTab } = useAuth();
+interface AgentDashboardProps {
+  onOpenListingModal?: () => void;
+}
+
+export const AgentDashboard: React.FC<AgentDashboardProps> = ({ onOpenListingModal }) => {
+  const { user, navigate } = useAuth();
 
   const [assistedFarmers, setAssistedFarmers] = useState([
-    { id: 1, name: 'Mallesh Goud', village: 'Jangaon North', phone: '+91 98491 22334', crops: 'Saahu Hybrid Tomatoes (450 kg)' },
-    { id: 2, name: 'Anjamma V', village: 'Cherial', phone: '+91 97012 33445', crops: 'Samba Masoori Paddy (1,200 kg)' },
-    { id: 3, name: 'Balaram Reddy', village: 'Bachannapet', phone: '+91 94410 55667', crops: 'Guntur S17 Chillies (300 kg)' },
+    { id: 1, name: 'Mallesh Goud', village: 'Jangaon North', phone: '+91 98491 22334', crops: 'Saahu Hybrid Tomatoes (450 kg)', status: 'Active' },
+    { id: 2, name: 'Anjamma V', village: 'Cherial', phone: '+91 97012 33445', crops: 'Samba Masoori Paddy (1,200 kg)', status: 'Active' },
+    { id: 3, name: 'Balaram Reddy', village: 'Bachannapet', phone: '+91 94410 55667', crops: 'Guntur S17 Chillies (300 kg)', status: 'Active' },
   ]);
 
   const [newFarmerName, setNewFarmerName] = useState('');
@@ -28,6 +38,11 @@ export const AgentDashboard: React.FC = () => {
   const [newFarmerPhone, setNewFarmerPhone] = useState('');
   const [newFarmerCrop, setNewFarmerCrop] = useState('');
   const [showAddFarmer, setShowAddFarmer] = useState(false);
+  const [pools, setPools] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getPools().then((data) => setPools(data)).catch(console.error);
+  }, []);
 
   const handleAddFarmer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +55,7 @@ export const AgentDashboard: React.FC = () => {
         village: newFarmerVillage,
         phone: newFarmerPhone || '+91 99000 88776',
         crops: newFarmerCrop || 'Assisted Harvest Lot',
+        status: 'Active',
       },
     ]);
     setNewFarmerName('');
@@ -64,13 +80,25 @@ export const AgentDashboard: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddFarmer(true)}
-          className="px-5 py-3 bg-[#C7F36B] hover:bg-[#d5faa0] text-[#153D2B] rounded-xl text-xs font-black shadow-md flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Onboard Local Farmer</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {onOpenListingModal && (
+            <button
+              onClick={onOpenListingModal}
+              className="px-4 py-3 bg-[#286443] hover:bg-[#205136] text-[#C7F36B] rounded-xl text-xs font-bold border border-[#C7F36B]/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Sprout className="w-4 h-4 text-[#C7F36B]" />
+              <span>Assisted Produce Listing</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowAddFarmer(true)}
+            className="px-5 py-3 bg-[#C7F36B] hover:bg-[#d5faa0] text-[#153D2B] rounded-xl text-xs font-black shadow-md flex items-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Onboard Local Farmer</span>
+          </button>
+        </div>
       </div>
 
       {/* Metrics Row */}
@@ -80,23 +108,82 @@ export const AgentDashboard: React.FC = () => {
           <div className="font-editorial text-3xl font-bold text-[#153D2B] mt-1">
             {assistedFarmers.length} Farmers
           </div>
-          <span className="text-[11px] text-[#286443] font-semibold">Jangaon Sub-district</span>
+          <span className="text-[11px] text-[#286443] font-semibold">Jangaon Sub-district Cluster</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-[#DCE8D7] shadow-sm">
-          <span className="text-xs text-stone-500 font-medium">Scheduled Morning Dispatches</span>
+          <span className="text-xs text-stone-500 font-medium">Active Harvest Pools</span>
           <div className="font-editorial text-3xl font-bold text-[#286443] mt-1">
-            1 Active Pool
+            {pools.length} Routes
           </div>
-          <span className="text-[11px] text-stone-500">1,650 kg aggregated cargo</span>
+          <span className="text-[11px] text-stone-500">Scheduled freight consolidation</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-[#DCE8D7] shadow-sm">
-          <span className="text-xs text-stone-500 font-medium">Village FPO Center</span>
+          <span className="text-xs text-stone-500 font-medium">Village FPO Collection Center</span>
           <div className="font-editorial text-xl font-bold text-[#153D2B] mt-1">
             Jangaon Mandi Yard #4
           </div>
           <span className="text-[11px] text-stone-500">Calibrated electronic weighing scale</span>
+        </div>
+      </div>
+
+      {/* Harvest Pooling & Collection Scheduling */}
+      <div className="bg-white p-6 rounded-3xl border border-[#DCE8D7] shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#DCE8D7]">
+          <div>
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-[#286443]" />
+              <h3 className="font-editorial text-lg font-bold text-[#153D2B]">
+                Village Collection & Harvest Pooling Schedules
+              </h3>
+            </div>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Consolidated farmer batches ready for logistics fleet dispatch to Hyderabad terminal.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/pooling')}
+            className="px-3.5 py-1.5 bg-[#153D2B] text-[#C7F36B] rounded-lg text-xs font-bold hover:bg-[#286443] transition-colors cursor-pointer"
+          >
+            Manage Pools
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {pools.map((p) => (
+            <div key={p.id} className="p-4 bg-[#F7F5EC] border border-[#DCE8D7] rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-[#286443]">{p.pool_code}</span>
+                <span className="px-2 py-0.5 rounded-full bg-[#C7F36B]/50 text-[#153D2B] text-[10px] font-bold capitalize">
+                  {p.status}
+                </span>
+              </div>
+              <h4 className="font-bold text-sm text-[#153D2B]">{p.title}</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs text-stone-600">
+                <div>
+                  <span className="text-stone-400 block text-[10px]">Collection Point</span>
+                  <strong>{p.collection_point}</strong>
+                </div>
+                <div>
+                  <span className="text-stone-400 block text-[10px]">Destination Market</span>
+                  <strong>{p.destination_market}</strong>
+                </div>
+                <div>
+                  <span className="text-stone-400 block text-[10px]">Pooled Weight</span>
+                  <strong className="text-[#286443]">{p.current_pooled_kg} / {p.target_capacity_kg} kg</strong>
+                </div>
+                <div>
+                  <span className="text-stone-400 block text-[10px]">Scheduled Pickup</span>
+                  <strong>{p.pickup_date} ({p.time_window})</strong>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-black/5 flex items-center justify-between text-xs">
+                <span className="text-[#286443] font-bold">Assigned Vehicle: {p.vehicle_type}</span>
+                <span className="text-stone-500">{p.participants?.length || 2} Farmers Joined</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -107,7 +194,7 @@ export const AgentDashboard: React.FC = () => {
             <h3 className="font-editorial text-lg font-bold text-[#153D2B]">
               Registered Cluster Smallholders
             </h3>
-            <p className="text-xs text-stone-500">Farmers without smartphones assisted via voice & SMS</p>
+            <p className="text-xs text-stone-500">Farmers without smartphones assisted with weighment and digital listing</p>
           </div>
         </div>
 
@@ -131,8 +218,8 @@ export const AgentDashboard: React.FC = () => {
                   <td className="py-3 text-[#286443] font-medium">{f.crops}</td>
                   <td className="py-3 text-right">
                     <button
-                      onClick={() => setActiveTab('pooling')}
-                      className="px-3 py-1 bg-[#153D2B] text-[#C7F36B] rounded-lg font-bold text-[11px]"
+                      onClick={() => navigate('/pooling')}
+                      className="px-3 py-1 bg-[#153D2B] text-[#C7F36B] rounded-lg font-bold text-[11px] cursor-pointer"
                     >
                       Allocate Pool Slot
                     </button>
@@ -147,35 +234,40 @@ export const AgentDashboard: React.FC = () => {
       {/* Add Farmer Modal */}
       {showAddFarmer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-[#F7F5EC] border-2 border-[#153D2B] rounded-3xl w-full max-w-md p-6 space-y-4">
+          <div className="bg-[#F7F5EC] border-2 border-[#153D2B] rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between pb-2 border-b border-[#DCE8D7]">
               <h3 className="font-editorial text-lg font-bold text-[#153D2B]">
-                Onboard Smallholder
+                Onboard Smallholder Farmer
               </h3>
-              <button onClick={() => setShowAddFarmer(false)}>✕</button>
+              <button
+                onClick={() => setShowAddFarmer(false)}
+                className="p-1 rounded-lg hover:bg-stone-200 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <form onSubmit={handleAddFarmer} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-[#153D2B] mb-1">Farmer Full Name</label>
+                <label className="block font-bold text-[#153D2B] mb-1">Farmer Full Name *</label>
                 <input
                   type="text"
                   required
                   value={newFarmerName}
                   onChange={(e) => setNewFarmerName(e.target.value)}
                   placeholder="e.g. Laxman Naik"
-                  className="w-full p-2 bg-white border border-[#DCE8D7] rounded-xl font-medium"
+                  className="w-full p-2.5 bg-white border border-[#DCE8D7] rounded-xl font-medium focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-[#153D2B] mb-1">Village Name</label>
+                <label className="block font-bold text-[#153D2B] mb-1">Village Name *</label>
                 <input
                   type="text"
                   required
                   value={newFarmerVillage}
                   onChange={(e) => setNewFarmerVillage(e.target.value)}
-                  className="w-full p-2 bg-white border border-[#DCE8D7] rounded-xl font-medium"
+                  className="w-full p-2.5 bg-white border border-[#DCE8D7] rounded-xl font-medium focus:outline-none"
                 />
               </div>
 
@@ -186,7 +278,7 @@ export const AgentDashboard: React.FC = () => {
                   value={newFarmerPhone}
                   onChange={(e) => setNewFarmerPhone(e.target.value)}
                   placeholder="+91 98..."
-                  className="w-full p-2 bg-white border border-[#DCE8D7] rounded-xl font-medium"
+                  className="w-full p-2.5 bg-white border border-[#DCE8D7] rounded-xl font-medium focus:outline-none"
                 />
               </div>
 
@@ -196,16 +288,16 @@ export const AgentDashboard: React.FC = () => {
                   type="text"
                   value={newFarmerCrop}
                   onChange={(e) => setNewFarmerCrop(e.target.value)}
-                  placeholder="e.g. Tomatoes (500 kg)"
-                  className="w-full p-2 bg-white border border-[#DCE8D7] rounded-xl font-medium"
+                  placeholder="e.g. Saahu Tomatoes (500 kg)"
+                  className="w-full p-2.5 bg-white border border-[#DCE8D7] rounded-xl font-medium focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-[#153D2B] text-[#C7F36B] rounded-xl font-bold text-xs"
+                className="w-full py-3 bg-[#153D2B] hover:bg-[#286443] text-[#C7F36B] rounded-xl font-bold text-xs shadow-md transition-colors cursor-pointer"
               >
-                Register Farmer & Create Slip
+                Register Farmer & Create Weighment Slip
               </button>
             </form>
           </div>

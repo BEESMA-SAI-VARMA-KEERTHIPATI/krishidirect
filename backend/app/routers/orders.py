@@ -9,17 +9,17 @@ from app.models.listing import ProduceListing
 from app.models.user import User
 from app.models.notification import Notification
 from app.schemas.order import OrderCreate, OrderResponse, OTPVerifyRequest, OrderStatusUpdate
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, require_role
 from app.services.otp_service import OTPService
 from app.services.payment_service import PaymentService
 
 router = APIRouter(prefix="/api/orders", tags=["Orders & Trust Passport"])
 
 def build_order_response(order: Order, db: Session, current_user: User) -> OrderResponse:
-    # Check if user is authorized to see demo OTP
+    # Only buyer (who receives the OTP) and admin can inspect demo OTP
     otp_record = db.query(DeliveryOTP).filter(DeliveryOTP.order_id == order.id).first()
     demo_otp = None
-    if otp_record and (current_user.id in [order.buyer_id, order.seller_id, order.transporter_id] or current_user.role == "admin"):
+    if otp_record and (current_user.id == order.buyer_id or current_user.role == "admin"):
         demo_otp = otp_record.raw_otp_preview
 
     resp = OrderResponse(
@@ -57,7 +57,7 @@ def build_order_response(order: Order, db: Session, current_user: User) -> Order
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def create_order(
     payload: OrderCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(["buyer", "admin"])),
     db: Session = Depends(get_db)
 ):
     listing = db.query(ProduceListing).filter(ProduceListing.id == payload.listing_id).first()
@@ -195,6 +195,43 @@ def update_order_status(
     if payload.status not in valid_statuses:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid status: {payload.status}")
 
+    # Role-based authorization on order lifecycle progression
+    if current_user.role == "farmer":
+        if order.seller_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to manage orders for other farmers' produce.",
+            )
+        if payload.status not in ["confirmed", "ready_for_pickup"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Farmers are only permitted to confirm orders or mark them ready for pickup. Status '{payload.status}' cannot be set by seller.",
+            )
+    elif current_user.role == "transporter":
+        if order.transporter_id and order.transporter_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This delivery route is already assigned to another transporter.",
+            )
+        if payload.status not in ["ready_for_pickup", "in_transit"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Transporters can update orders to 'ready_for_pickup' or 'in_transit'. Final delivery requires OTP verification.",
+            )
+    elif current_user.role == "agent":
+        if payload.status not in ["confirmed", "ready_for_pickup"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Village agents can assist farmers in confirming orders or preparing produce for pickup.",
+            )
+    elif current_user.role == "buyer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Buyers cannot change transit status directly. Use OTP verification upon delivery inspection or cancel the order.",
+        )
+    elif current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized role for order status updates.")
+
     order.status = payload.status
     
     # If transporter is claiming the order
@@ -252,6 +289,15 @@ def verify_otp(
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    if current_user.role not in ["transporter", "buyer", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized role for delivery verification.")
+
+    if current_user.role == "transporter" and order.transporter_id and order.transporter_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the assigned transporter for this order.")
+
+    if current_user.role == "buyer" and order.buyer_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not the buyer for this order.")
 
     success = OTPService.verify_delivery_otp(
         order_id=order_id,

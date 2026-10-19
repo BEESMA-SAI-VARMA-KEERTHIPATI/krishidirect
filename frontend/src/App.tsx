@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { DemoBanner } from './components/DemoBanner';
 import { Navbar } from './components/Navbar';
 import { LandingPage } from './pages/LandingPage';
 import { BuyerMarketplace } from './pages/BuyerMarketplace';
@@ -10,6 +9,7 @@ import { PoolingPage } from './pages/PoolingPage';
 import { AgentDashboard } from './pages/AgentDashboard';
 import { TransporterDashboard } from './pages/TransporterDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { AccessDenied } from './components/AccessDenied';
 import { VoiceAssistantModal } from './components/VoiceAssistantModal';
 import { CartDrawer } from './components/CartDrawer';
 import { ProduceListingModal } from './components/ProduceListingModal';
@@ -17,10 +17,18 @@ import { ProfitCalculatorModal } from './components/ProfitCalculatorModal';
 import { FairPriceModal } from './components/FairPriceModal';
 import { AuthModal } from './components/AuthModal';
 import { KrishiLogo } from './components/KrishiLogo';
-import { Heart, ShieldCheck, Leaf, Globe } from 'lucide-react';
+import { ShieldCheck, Loader2 } from 'lucide-react';
+import { getRoleDashboardPath } from './types';
 
 const AppContent: React.FC = () => {
-  const { activeTab, setActiveTab, isVoiceOpen, setIsVoiceOpen } = useAuth();
+  const {
+    user,
+    isLoadingAuth,
+    currentPath,
+    navigate,
+    isVoiceOpen,
+    setIsVoiceOpen,
+  } = useAuth();
 
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
   const [isProfitModalOpen, setIsProfitModalOpen] = useState(false);
@@ -53,40 +61,131 @@ const AppContent: React.FC = () => {
     }
   };
 
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F5EC] text-[#153D2B]">
+        <div className="flex flex-col items-center gap-3">
+          <KrishiLogo size="lg" />
+          <div className="flex items-center gap-2 text-xs font-bold text-stone-600 mt-2">
+            <Loader2 className="w-4 h-4 animate-spin text-[#286443]" />
+            <span>Restoring secure session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Path normalization
+  const cleanPath = currentPath.replace(/\/$/, '') || '/';
+
+  // Role-based Router matching
+  const renderCurrentRoute = () => {
+    // 1. Farmer Dashboard Route
+    if (cleanPath === '/farmer/dashboard') {
+      if (user?.role === 'farmer' || user?.role === 'admin') {
+        return (
+          <FarmerDashboard
+            onOpenListingModal={() => setIsListingModalOpen(true)}
+            onOpenProfitModal={() => setIsProfitModalOpen(true)}
+            onOpenFairPriceModal={() => setIsFairPriceModalOpen(true)}
+          />
+        );
+      }
+      return <AccessDenied requiredRole="farmer" onOpenAuthModal={() => openAuth('login')} />;
+    }
+
+    // 2. Buyer Dashboard Route
+    if (cleanPath === '/buyer/dashboard') {
+      if (user?.role === 'buyer' || user?.role === 'admin') {
+        return <BuyerMarketplace isDashboardView={true} />;
+      }
+      return <AccessDenied requiredRole="buyer" onOpenAuthModal={() => openAuth('login')} />;
+    }
+
+    // 3. Village Agent Dashboard Route
+    if (cleanPath === '/agent/dashboard') {
+      if (user?.role === 'agent' || user?.role === 'admin') {
+        return <AgentDashboard onOpenListingModal={() => setIsListingModalOpen(true)} />;
+      }
+      return <AccessDenied requiredRole="agent" onOpenAuthModal={() => openAuth('login')} />;
+    }
+
+    // 4. Transporter Dashboard Route
+    if (cleanPath === '/transporter/dashboard') {
+      if (user?.role === 'transporter' || user?.role === 'admin') {
+        return <TransporterDashboard />;
+      }
+      return <AccessDenied requiredRole="transporter" onOpenAuthModal={() => openAuth('login')} />;
+    }
+
+    // 5. Admin Dashboard Route
+    if (cleanPath === '/admin/dashboard') {
+      if (user?.role === 'admin') {
+        return <AdminDashboard />;
+      }
+      return <AccessDenied requiredRole="admin" onOpenAuthModal={() => openAuth('login')} />;
+    }
+
+    // 6. Marketplace Route
+    if (cleanPath === '/marketplace') {
+      // Farmers must not see buyer shopping interface
+      if (user?.role === 'farmer') {
+        return (
+          <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-[#DCE8D7] rounded-3xl shadow-sm text-center space-y-4">
+            <h2 className="font-editorial text-2xl font-bold text-[#153D2B]">
+              Farmer Sell Terminal
+            </h2>
+            <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
+              As a registered Farmer, your harvest listings are displayed on the public marketplace for buyers.
+              To manage your inventory, review prices, or confirm buyer orders, please return to your Farmer Command Center.
+            </p>
+            <button
+              onClick={() => navigate('/farmer/dashboard')}
+              className="px-6 py-2.5 bg-[#153D2B] hover:bg-[#286443] text-[#C7F36B] rounded-xl text-xs font-bold transition-all shadow-sm"
+            >
+              Go to Farmer Dashboard
+            </button>
+          </div>
+        );
+      }
+      return <BuyerMarketplace isDashboardView={false} />;
+    }
+
+    // 7. Orders Page
+    if (cleanPath === '/orders') {
+      if (!user) {
+        return <AccessDenied onOpenAuthModal={() => openAuth('login')} />;
+      }
+      return <OrdersPage />;
+    }
+
+    // 8. Pooling Page
+    if (cleanPath === '/pooling') {
+      return <PoolingPage />;
+    }
+
+    // 9. Root Landing Page (Default)
+    return (
+      <LandingPage
+        onOpenListingModal={() => setIsListingModalOpen(true)}
+        onOpenProfitModal={() => setIsProfitModalOpen(true)}
+        onOpenFairPriceModal={() => setIsFairPriceModalOpen(true)}
+      />
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F5EC] text-[#202820]">
-      {/* 1-Click Role Switcher Demo Bar */}
-      <DemoBanner />
-
-      {/* Main Navigation */}
+      {/* Main Navigation (Role-segregated, NO switch roles) */}
       <Navbar
         onOpenListingModal={() => setIsListingModalOpen(true)}
         onOpenProfitModal={() => setIsProfitModalOpen(true)}
         onOpenAuthModal={openAuth}
       />
 
-      {/* Active Tab Router */}
+      {/* Active Role Dashboard / Page Route */}
       <main className="flex-1">
-        {activeTab === 'home' && (
-          <LandingPage
-            onOpenListingModal={() => setIsListingModalOpen(true)}
-            onOpenProfitModal={() => setIsProfitModalOpen(true)}
-            onOpenFairPriceModal={() => setIsFairPriceModalOpen(true)}
-          />
-        )}
-        {activeTab === 'marketplace' && <BuyerMarketplace />}
-        {activeTab === 'farmer-dashboard' && (
-          <FarmerDashboard
-            onOpenListingModal={() => setIsListingModalOpen(true)}
-            onOpenProfitModal={() => setIsProfitModalOpen(true)}
-            onOpenFairPriceModal={() => setIsFairPriceModalOpen(true)}
-          />
-        )}
-        {activeTab === 'orders' && <OrdersPage />}
-        {activeTab === 'pooling' && <PoolingPage />}
-        {activeTab === 'agent-dashboard' && <AgentDashboard />}
-        {activeTab === 'transporter-dashboard' && <TransporterDashboard />}
-        {activeTab === 'admin-dashboard' && <AdminDashboard />}
+        {renderCurrentRoute()}
       </main>
 
       {/* Persistent Global Modals */}
@@ -96,7 +195,8 @@ const AppContent: React.FC = () => {
         onExecuteAction={handleVoiceAction}
       />
 
-      <CartDrawer />
+      {/* Cart Drawer: only accessible to buyer role */}
+      {user?.role === 'buyer' && <CartDrawer />}
 
       <ProduceListingModal
         isOpen={isListingModalOpen}
@@ -139,13 +239,19 @@ const AppContent: React.FC = () => {
               Platform Features
             </h4>
             <ul className="space-y-2 text-xs text-white/70 font-light">
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('marketplace')}>
+              <li
+                className="hover:text-white cursor-pointer"
+                onClick={() => {
+                  if (user?.role === 'farmer') navigate('/farmer/dashboard');
+                  else navigate('/marketplace');
+                }}
+              >
                 Direct Produce Marketplace
               </li>
               <li className="hover:text-white cursor-pointer" onClick={() => setIsFairPriceModalOpen(true)}>
                 AI Fair-Price Advisory Engine
               </li>
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('pooling')}>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/pooling')}>
                 Smart Village Harvest Pooling
               </li>
               <li className="hover:text-white cursor-pointer" onClick={() => setIsProfitModalOpen(true)}>
@@ -162,19 +268,19 @@ const AppContent: React.FC = () => {
               Role Workspaces
             </h4>
             <ul className="space-y-2 text-xs text-white/70 font-light">
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('farmer-dashboard')}>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/farmer/dashboard')}>
                 Farmer Command Center
               </li>
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('marketplace')}>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/buyer/dashboard')}>
                 Buyer Sourcing Terminal
               </li>
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('agent-dashboard')}>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/agent/dashboard')}>
                 Village Agent Desk
               </li>
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('transporter-dashboard')}>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/transporter/dashboard')}>
                 Logistics Fleet Management
               </li>
-              <li className="hover:text-white cursor-pointer" onClick={() => setActiveTab('admin-dashboard')}>
+              <li className="hover:text-white cursor-pointer" onClick={() => navigate('/admin/dashboard')}>
                 Platform Administration
               </li>
             </ul>
@@ -194,7 +300,7 @@ const AppContent: React.FC = () => {
               </p>
             </div>
             <span className="text-[10px] text-white/50 block font-mono">
-              KrishiDirect Prototype v1.0.0 • SQLite/FastAPI/React
+              KrishiDirect Prototype • Verified Role Architecture
             </span>
           </div>
         </div>
@@ -204,9 +310,9 @@ const AppContent: React.FC = () => {
             © 2026 KrishiDirect. Designed with Living Harvest identity for Indian smallholder farmers.
           </div>
           <div className="flex items-center gap-4">
-            <span className="hover:text-white cursor-pointer" onClick={() => setActiveTab('home')}>Home</span>
+            <span className="hover:text-white cursor-pointer" onClick={() => navigate('/')}>Home</span>
             <span>•</span>
-            <span className="hover:text-white cursor-pointer" onClick={() => setActiveTab('orders')}>Trust Passports</span>
+            <span className="hover:text-white cursor-pointer" onClick={() => navigate('/orders')}>Trust Passports</span>
             <span>•</span>
             <span className="hover:text-white cursor-pointer" onClick={() => setIsVoiceOpen(true)}>Krishi Voice</span>
           </div>

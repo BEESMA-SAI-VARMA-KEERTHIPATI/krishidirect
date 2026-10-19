@@ -26,7 +26,16 @@ import {
   AlertCircle,
   Truck,
   ArrowRight,
+  PauseCircle,
+  PlayCircle,
+  UserCheck,
+  FileCheck2,
+  MapPin,
+  Calendar,
+  ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
+import { TrustPassportModal } from '../components/TrustPassportModal';
 
 interface FarmerDashboardProps {
   onOpenListingModal: () => void;
@@ -39,12 +48,14 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
   onOpenProfitModal,
   onOpenFairPriceModal,
 }) => {
-  const { user, setIsVoiceOpen, setActiveTab } = useAuth();
+  const { user, setIsVoiceOpen, navigate } = useAuth();
 
   const [myListings, setMyListings] = useState<ProduceListing[]>([]);
   const [farmerOrders, setFarmerOrders] = useState<Order[]>([]);
   const [fairPrice, setFairPrice] = useState<PriceEstimate | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [selectedPassportOrder, setSelectedPassportOrder] = useState<Order | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<number | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -73,6 +84,34 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
     }
   };
 
+  const handleToggleListingStatus = async (listing: ProduceListing) => {
+    const nextStatus = listing.status === 'active' ? 'paused' : 'active';
+    try {
+      await api.updateListing(listing.id, { status: nextStatus });
+      setMyListings((prev) =>
+        prev.map((l) => (l.id === listing.id ? { ...l, status: nextStatus } : l))
+      );
+    } catch (err: any) {
+      alert(`Could not update listing status: ${err.message}`);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: number, nextStatus: 'confirmed' | 'ready_for_pickup') => {
+    setIsUpdatingStatus(orderId);
+    try {
+      const note =
+        nextStatus === 'confirmed'
+          ? 'Order confirmed by farmer. Preparing harvest lot.'
+          : 'Produce packaged and staged at farm hub ready for transporter pickup.';
+      const updated = await api.updateOrderStatus(orderId, nextStatus, note);
+      setFarmerOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+    } catch (err: any) {
+      alert(`Could not update order: ${err.message}`);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
   // Build real sales earnings history from confirmed orders
   const salesChartData = [
     { date: '14 Oct', revenue: 0 },
@@ -98,23 +137,25 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-[#C7F36B] text-[#153D2B] text-[10px] font-bold uppercase tracking-wider">
-              Kisan Command Center
+              Farmer Command Center
             </span>
-            <span className="text-white/60 text-xs">Jangaon Rural Cluster</span>
+            <span className="text-white/60 text-xs">
+              {user?.village || 'Jangaon Rural'} • {user?.district || 'Warangal'}
+            </span>
           </div>
           <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-[#F7F5EC]">
             Welcome, {user?.full_name || 'Ramesh Patel'}
           </h1>
           <p className="text-xs text-white/80 max-w-xl font-light">
-            Manage your crop stock, review AI market estimates, calculate net profit margins,
-            and dispatch pooled harvest with nearby village farmers.
+            List your harvests, track incoming buyer orders, review AI fair-price benchmarks,
+            calculate net profit margins, and coordinate freight pooling with neighboring farmers.
           </p>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
             onClick={() => setIsVoiceOpen(true)}
-            className="flex-1 md:flex-initial px-4 py-3 bg-[#286443] hover:bg-[#205136] text-[#C7F36B] rounded-xl text-xs font-bold border border-[#C7F36B]/30 flex items-center justify-center gap-2 transition-colors"
+            className="flex-1 md:flex-initial px-4 py-3 bg-[#286443] hover:bg-[#205136] text-[#C7F36B] rounded-xl text-xs font-bold border border-[#C7F36B]/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <Mic className="w-4 h-4 text-[#C7F36B]" />
             <span>Voice Assistant</span>
@@ -122,7 +163,7 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
 
           <button
             onClick={onOpenListingModal}
-            className="flex-1 md:flex-initial px-5 py-3 bg-[#C7F36B] hover:bg-[#d5faa0] text-[#153D2B] rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5"
+            className="flex-1 md:flex-initial px-5 py-3 bg-[#C7F36B] hover:bg-[#d5faa0] text-[#153D2B] rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>List Your Harvest</span>
@@ -137,23 +178,23 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
           <div className="font-editorial text-2xl font-bold text-[#286443] mt-1">
             {formatCurrency(totalSoldRevenue || 7400.0)}
           </div>
-          <span className="text-[10px] text-emerald-700 font-semibold">100% Escrow Verified</span>
+          <span className="text-[10px] text-emerald-700 font-semibold">100% Escrow Secured</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-[#DCE8D7] shadow-sm">
           <span className="text-[11px] text-stone-500 font-medium">Active Harvest Lots</span>
           <div className="font-editorial text-2xl font-bold text-[#153D2B] mt-1">
-            {myListings.length || 3} Crops
+            {myListings.length} Crops
           </div>
           <span className="text-[10px] text-stone-500 font-medium">Listed for Direct Sale</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-[#DCE8D7] shadow-sm">
-          <span className="text-[11px] text-stone-500 font-medium">Pending Pickup & Transit</span>
+          <span className="text-[11px] text-stone-500 font-medium">Pending Buyer Orders</span>
           <div className="font-editorial text-2xl font-bold text-amber-600 mt-1">
-            {pendingOrders.length || 1} Orders
+            {pendingOrders.length} Orders
           </div>
-          <span className="text-[10px] text-amber-800 font-medium">Transporter Dispatched</span>
+          <span className="text-[10px] text-amber-800 font-medium">Awaiting Dispatch</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-[#DCE8D7] shadow-sm">
@@ -165,7 +206,228 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
         </div>
       </div>
 
-      {/* 3. Middle Grid: AI Fair Price Insight + Sales Chart */}
+      {/* 3. Incoming Buyer Orders Section */}
+      <div className="bg-white p-6 rounded-3xl border border-[#DCE8D7] shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#DCE8D7]">
+          <div>
+            <div className="flex items-center gap-2">
+              <FileCheck2 className="w-5 h-5 text-[#286443]" />
+              <h3 className="font-editorial text-lg font-bold text-[#153D2B]">
+                Incoming Buyer Orders (Your Produce)
+              </h3>
+            </div>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Orders placed by verified buyers for your listed harvests. Funds are locked in escrow.
+            </p>
+          </div>
+          <button
+            onClick={loadDashboardData}
+            className="p-2 text-stone-500 hover:text-[#153D2B] rounded-lg hover:bg-[#F7F5EC] transition-colors"
+            title="Refresh Orders"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+
+        {farmerOrders.length === 0 ? (
+          <div className="py-12 text-center text-stone-400 space-y-2">
+            <Package className="w-10 h-10 mx-auto text-stone-300" />
+            <p className="text-xs">No buyer orders received yet. Active listings are visible on the buyer marketplace.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-[#F7F5EC] text-stone-600 font-bold border-b border-[#DCE8D7]">
+                  <th className="p-3 rounded-l-xl">Order #</th>
+                  <th className="p-3">Buyer</th>
+                  <th className="p-3">Produce & Qty</th>
+                  <th className="p-3">Produce Total</th>
+                  <th className="p-3">Escrow Status</th>
+                  <th className="p-3">Order Status</th>
+                  <th className="p-3 rounded-r-xl text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#DCE8D7]/60">
+                {farmerOrders.map((order) => {
+                  const isUpdating = isUpdatingStatus === order.id;
+                  return (
+                    <tr key={order.id} className="hover:bg-black/[0.01] transition-colors">
+                      <td className="p-3 font-mono font-bold text-[#153D2B]">
+                        {order.order_number}
+                      </td>
+                      <td className="p-3">
+                        <div className="font-semibold text-stone-800">
+                          {order.buyer?.full_name || 'Verified Buyer'}
+                        </div>
+                        <span className="text-[10px] text-stone-500">
+                          {order.delivery_address || 'Destination Hub'}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="font-bold text-[#153D2B]">{order.produce_name}</span>
+                        <div className="text-[11px] text-stone-500">
+                          {order.quantity} {order.unit} @ {formatCurrency(order.unit_price)}/{order.unit}
+                        </div>
+                      </td>
+                      <td className="p-3 font-editorial text-sm font-bold text-[#286443]">
+                        {formatCurrency(order.produce_total)}
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold inline-flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" />
+                          <span>{order.payment_status.replace(/_/g, ' ')}</span>
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${
+                            order.status === 'pending'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : order.status === 'confirmed'
+                              ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                              : order.status === 'ready_for_pickup'
+                              ? 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                              : order.status === 'in_transit'
+                              ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                              : order.status === 'delivered'
+                              ? 'bg-[#C7F36B]/50 text-[#153D2B] border border-[#286443]/30'
+                              : 'bg-stone-100 text-stone-800'
+                          }`}
+                        >
+                          {order.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {order.status === 'pending' && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}
+                              className="px-3 py-1.5 bg-[#153D2B] hover:bg-[#286443] text-[#C7F36B] rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              {isUpdating ? 'Updating...' : 'Confirm Order'}
+                            </button>
+                          )}
+                          {order.status === 'confirmed' && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => handleUpdateOrderStatus(order.id, 'ready_for_pickup')}
+                              className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                            >
+                              {isUpdating ? 'Updating...' : 'Mark Ready for Pickup'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSelectedPassportOrder(order)}
+                            className="px-2.5 py-1.5 bg-[#F7F5EC] hover:bg-[#DCE8D7] text-[#153D2B] rounded-lg text-xs font-semibold border border-[#DCE8D7] transition-colors cursor-pointer"
+                          >
+                            Trust Passport
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Active Harvest Listings & Stock Management */}
+      <div className="bg-white p-6 rounded-3xl border border-[#DCE8D7] shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#DCE8D7]">
+          <div>
+            <h3 className="font-editorial text-lg font-bold text-[#153D2B]">
+              Your Active Produce Inventory
+            </h3>
+            <p className="text-xs text-stone-500">Live listings visible to buyers across Telangana & AP</p>
+          </div>
+          <button
+            onClick={onOpenListingModal}
+            className="px-3.5 py-1.5 bg-[#153D2B] text-[#C7F36B] rounded-lg text-xs font-bold hover:bg-[#286443] transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add New Lot</span>
+          </button>
+        </div>
+
+        {myListings.length === 0 ? (
+          <div className="py-12 text-center text-stone-400 space-y-2">
+            <Sprout className="w-10 h-10 mx-auto text-stone-300" />
+            <p className="text-xs">No crops listed yet. Click "List Your Harvest" to get started.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {myListings.map((listing) => (
+              <div
+                key={listing.id}
+                className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                  listing.status === 'paused'
+                    ? 'bg-stone-50 border-stone-300 opacity-80'
+                    : 'bg-[#F7F5EC] border-[#DCE8D7]'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#C7F36B]/50 text-[#153D2B]">
+                      {listing.quality_grade}
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold capitalize ${
+                        listing.status === 'active' ? 'text-[#286443]' : 'text-amber-700'
+                      }`}
+                    >
+                      ● {listing.status}
+                    </span>
+                  </div>
+
+                  <h4 className="font-bold text-sm text-[#153D2B] mt-2">{listing.produce_name}</h4>
+                  <div className="text-xs text-stone-500">{listing.variety || 'Standard Hybrid'}</div>
+
+                  <div className="mt-3 pt-2 border-t border-[#DCE8D7] flex justify-between items-baseline">
+                    <div>
+                      <span className="text-[10px] text-stone-400 block">Asking Price</span>
+                      <span className="font-editorial text-base font-bold text-[#286443]">
+                        {formatCurrency(listing.asking_price)}/{listing.unit}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-stone-400 block">Available Stock</span>
+                      <span className="text-xs font-bold text-[#153D2B]">
+                        {listing.available_quantity} / {listing.initial_quantity} {listing.unit}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-black/5 flex items-center justify-between text-xs">
+                  <span className="text-[11px] text-stone-500">{listing.farm_location}</span>
+                  <button
+                    onClick={() => handleToggleListingStatus(listing)}
+                    className="flex items-center gap-1 text-xs font-bold text-[#286443] hover:text-[#153D2B] cursor-pointer"
+                  >
+                    {listing.status === 'active' ? (
+                      <>
+                        <PauseCircle className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Pause</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlayCircle className="w-3.5 h-3.5 text-[#286443]" />
+                        <span>Resume</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 5. Middle Grid: AI Fair Price Insight + Sales Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: AI Fair-Price Insight Panel */}
         <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-[#DCE8D7] shadow-sm flex flex-col justify-between space-y-4">
@@ -179,7 +441,7 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
               </div>
               <button
                 onClick={onOpenFairPriceModal}
-                className="text-xs text-[#286443] font-bold hover:underline"
+                className="text-xs text-[#286443] font-bold hover:underline cursor-pointer"
               >
                 Inspect Factors
               </button>
@@ -218,13 +480,13 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
                   <div className="flex items-start gap-2 text-stone-600">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#286443] flex-shrink-0 mt-0.5" />
                     <span>
-                      Quality grade and zero mandi trader cess adds <strong>+12% premium</strong> over local spot prices.
+                      Zero mandi trader commission guarantees <strong>+12% to +20% premium</strong> over local spot prices.
                     </span>
                   </div>
                   <div className="flex items-start gap-2 text-stone-600">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[#286443] flex-shrink-0 mt-0.5" />
                     <span>
-                      Direct transit from farm hub eliminates ₹0.80/kg handling damage and weight shrinkage.
+                      Direct transit from farm hub eliminates handling damage and weight shrinkage.
                     </span>
                   </div>
                 </div>
@@ -235,7 +497,7 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
           <div className="pt-2 border-t border-[#DCE8D7] flex items-center justify-between">
             <button
               onClick={onOpenProfitModal}
-              className="w-full py-2.5 bg-[#F7F5EC] hover:bg-[#DCE8D7] text-[#153D2B] text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border border-[#DCE8D7]"
+              className="w-full py-2.5 bg-[#F7F5EC] hover:bg-[#DCE8D7] text-[#153D2B] text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border border-[#DCE8D7] cursor-pointer"
             >
               <Calculator className="w-4 h-4 text-[#286443]" />
               <span>Launch Net Profit Calculator</span>
@@ -290,68 +552,7 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
         </div>
       </div>
 
-      {/* 4. Active Harvest Listings & Stock Management */}
-      <div className="bg-white p-6 rounded-3xl border border-[#DCE8D7] shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[#DCE8D7]">
-          <div>
-            <h3 className="font-editorial text-lg font-bold text-[#153D2B]">
-              Your Active Produce Inventory
-            </h3>
-            <p className="text-xs text-stone-500">Live listings visible to buyers across Telangana & AP</p>
-          </div>
-          <button
-            onClick={onOpenListingModal}
-            className="px-3.5 py-1.5 bg-[#153D2B] text-[#C7F36B] rounded-lg text-xs font-bold hover:bg-[#286443] transition-colors"
-          >
-            + Add New Lot
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {myListings.map((listing) => (
-            <div
-              key={listing.id}
-              className="p-4 bg-[#F7F5EC] border border-[#DCE8D7] rounded-2xl flex flex-col justify-between space-y-3"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#C7F36B]/50 text-[#153D2B]">
-                    {listing.quality_grade}
-                  </span>
-                  <span className="text-[11px] font-semibold capitalize text-[#286443]">
-                    ● {listing.status}
-                  </span>
-                </div>
-
-                <h4 className="font-bold text-sm text-[#153D2B] mt-2">{listing.produce_name}</h4>
-                <div className="text-xs text-stone-500">{listing.variety || 'Standard Hybrid'}</div>
-
-                <div className="mt-3 pt-2 border-t border-[#DCE8D7] flex justify-between items-baseline">
-                  <div>
-                    <span className="text-[10px] text-stone-400 block">Asking Price</span>
-                    <span className="font-editorial text-base font-bold text-[#286443]">
-                      {formatCurrency(listing.asking_price)}/{listing.unit}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-stone-400 block">Available Stock</span>
-                    <span className="text-xs font-bold text-[#153D2B]">
-                      {listing.available_quantity} / {listing.initial_quantity} {listing.unit}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-black/5 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-stone-500">{listing.pickup_method.replace('_', ' ')}</span>
-                <span className="text-[#286443] font-bold">Active in Market</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. Village Harvest Pooling Opportunities Banner */}
+      {/* 6. Village Harvest Pooling Opportunities Banner */}
       <div className="bg-[#E7B85C]/15 border-2 border-[#E7B85C]/50 p-6 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-start gap-3.5">
           <div className="p-3 bg-[#E7B85C] text-[#153D2B] rounded-2xl flex-shrink-0">
@@ -372,13 +573,20 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
         </div>
 
         <button
-          onClick={() => setActiveTab('pooling')}
-          className="px-5 py-2.5 bg-[#153D2B] text-[#C7F36B] hover:bg-[#286443] text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 flex-shrink-0"
+          onClick={() => navigate('/pooling')}
+          className="px-5 py-2.5 bg-[#153D2B] text-[#C7F36B] hover:bg-[#286443] text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
         >
           <span>View Village Pooling</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Trust Passport Modal */}
+      <TrustPassportModal
+        isOpen={!!selectedPassportOrder}
+        order={selectedPassportOrder}
+        onClose={() => setSelectedPassportOrder(null)}
+      />
     </div>
   );
 };

@@ -1,17 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, CartItem, ProduceListing } from '../types';
+import { User, CartItem, ProduceListing, getRoleDashboardPath } from '../types';
 import { api } from '../services/api';
 import { Locale, translations } from '../services/i18n';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  isLoadingAuth: boolean;
+  currentPath: string;
+  navigate: (path: string) => void;
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: typeof translations['en'];
   demoAccounts: any[];
-  loginAsDemo: (account: any) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (userData: any) => Promise<User>;
   logout: () => void;
   cart: CartItem[];
   addToCart: (listing: ProduceListing, quantity: number) => void;
@@ -27,17 +30,64 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const pathToTab = (path: string): string => {
+  const clean = path.replace(/\/$/, '') || '/';
+  if (clean === '/' || clean === '/home') return 'home';
+  if (clean === '/farmer/dashboard') return 'farmer-dashboard';
+  if (clean === '/buyer/dashboard') return 'buyer-dashboard';
+  if (clean === '/agent/dashboard') return 'agent-dashboard';
+  if (clean === '/transporter/dashboard') return 'transporter-dashboard';
+  if (clean === '/admin/dashboard') return 'admin-dashboard';
+  if (clean === '/marketplace') return 'marketplace';
+  if (clean === '/orders') return 'orders';
+  if (clean === '/pooling') return 'pooling';
+  return 'home';
+};
+
+const tabToPath = (tab: string, userRole?: string): string => {
+  switch (tab) {
+    case 'home':
+      return '/';
+    case 'farmer-dashboard':
+      return '/farmer/dashboard';
+    case 'buyer-dashboard':
+      return '/buyer/dashboard';
+    case 'agent-dashboard':
+      return '/agent/dashboard';
+    case 'transporter-dashboard':
+      return '/transporter/dashboard';
+    case 'admin-dashboard':
+      return '/admin/dashboard';
+    case 'marketplace':
+      return userRole === 'buyer' ? '/buyer/dashboard' : '/marketplace';
+    case 'orders':
+      return '/orders';
+    case 'pooling':
+      return '/pooling';
+    default:
+      return '/';
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('krishi_token'));
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
+  const [currentPath, setCurrentPath] = useState<string>(window.location.pathname || '/');
   const [locale, setLocaleState] = useState<Locale>((localStorage.getItem('krishi_lang') as Locale) || 'en');
   const [demoAccounts, setDemoAccounts] = useState<any[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('home');
   const [isVoiceOpen, setIsVoiceOpen] = useState<boolean>(false);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
 
   const t = translations[locale] || translations.en;
+
+  const navigate = (path: string) => {
+    setCurrentPath(path);
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+  };
 
   const setLocale = (l: Locale) => {
     setLocaleState(l);
@@ -45,57 +95,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Load demo accounts
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    // 1. Fetch demo accounts list for reference only
     api.getDemoAccounts()
       .then((accs) => {
         setDemoAccounts(accs);
-        // If no user is logged in, auto-login with Farmer demo account
-        if (!localStorage.getItem('krishi_token') && accs.length > 0) {
-          loginAsDemo(accs[0]);
-        }
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.warn('Could not load demo accounts list:', err);
+      });
 
-    // If token exists, fetch me
-    if (token) {
+    // 2. Authenticate existing session if token exists
+    const storedToken = localStorage.getItem('krishi_token');
+    if (storedToken) {
       api.getMe()
-        .then((u) => setUser(u))
+        .then((u) => {
+          setUser(u);
+          if (u.preferred_lang && ['en', 'hi', 'te'].includes(u.preferred_lang)) {
+            setLocale(u.preferred_lang as Locale);
+          }
+        })
         .catch(() => {
           localStorage.removeItem('krishi_token');
           setToken(null);
           setUser(null);
+        })
+        .finally(() => {
+          setIsLoadingAuth(false);
         });
+    } else {
+      setIsLoadingAuth(false);
     }
   }, []);
 
-  const loginAsDemo = async (account: any) => {
-    try {
-      const res = await api.login({ email: account.email, password: account.password });
-      localStorage.setItem('krishi_token', res.access_token);
-      setToken(res.access_token);
-      setUser(res.user);
-      if (res.user.preferred_lang && ['en', 'hi', 'te'].includes(res.user.preferred_lang)) {
-        setLocale(res.user.preferred_lang as Locale);
-      }
-    } catch (err) {
-      console.error('Demo login error:', err);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const res = await api.login({ email, password });
     localStorage.setItem('krishi_token', res.access_token);
     setToken(res.access_token);
     setUser(res.user);
+    if (res.user.preferred_lang && ['en', 'hi', 'te'].includes(res.user.preferred_lang)) {
+      setLocale(res.user.preferred_lang as Locale);
+    }
+    const dashboardRoute = getRoleDashboardPath(res.user.role);
+    navigate(dashboardRoute);
+    return res.user;
+  };
+
+  const register = async (userData: any): Promise<User> => {
+    const res = await api.register(userData);
+    localStorage.setItem('krishi_token', res.access_token);
+    setToken(res.access_token);
+    setUser(res.user);
+    if (res.user.preferred_lang && ['en', 'hi', 'te'].includes(res.user.preferred_lang)) {
+      setLocale(res.user.preferred_lang as Locale);
+    }
+    const dashboardRoute = getRoleDashboardPath(res.user.role);
+    navigate(dashboardRoute);
+    return res.user;
   };
 
   const logout = () => {
     localStorage.removeItem('krishi_token');
     setToken(null);
     setUser(null);
+    setCart([]);
+    navigate('/');
+  };
+
+  const activeTab = pathToTab(currentPath);
+  const setActiveTab = (tab: string) => {
+    const nextPath = tabToPath(tab, user?.role);
+    navigate(nextPath);
   };
 
   const addToCart = (listing: ProduceListing, quantity: number) => {
+    // Prevent farmers from using cart
+    if (user?.role === 'farmer') return;
     setCart((prev) => {
       const existing = prev.find((item) => item.listing.id === listing.id);
       if (existing) {
@@ -119,12 +201,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         token,
+        isLoadingAuth,
+        currentPath,
+        navigate,
         locale,
         setLocale,
         t,
         demoAccounts,
-        loginAsDemo,
         login,
+        register,
         logout,
         cart,
         addToCart,

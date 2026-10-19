@@ -12,25 +12,27 @@ import {
   FileCheck2,
   Shield,
   Truck,
-  Calculator,
+  Sprout,
+  ShoppingBag,
+  Building2,
 } from 'lucide-react';
-import { Locale } from '../services/i18n';
+import { getRoleDashboardPath } from '../types';
 
 interface NavbarProps {
   onOpenListingModal?: () => void;
   onOpenProfitModal?: () => void;
-  onOpenAuthModal?: (mode: 'login' | 'register') => void;
+  onOpenAuthModal?: (mode?: 'login' | 'register') => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenListingModal, onOpenProfitModal, onOpenAuthModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenAuthModal }) => {
   const {
     user,
     locale,
     setLocale,
     t,
     logout,
-    activeTab,
-    setActiveTab,
+    currentPath,
+    navigate,
     cart,
     setIsCartOpen,
     setIsVoiceOpen,
@@ -38,77 +40,88 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenListingModal, onOpenProfit
 
   const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const navItems = [
-    { id: 'home', label: 'Home', icon: Store, show: true },
-    { id: 'marketplace', label: t.navMarketplace, icon: Store, show: true },
-    {
-      id: 'farmer-dashboard',
-      label: t.navDashboard,
-      icon: LayoutDashboard,
-      show: user?.role === 'farmer' || user?.role === 'admin',
-    },
-    {
-      id: 'orders',
-      label: t.navOrders,
-      icon: FileCheck2,
-      show: !!user,
-    },
-    {
-      id: 'pooling',
-      label: t.navPooling,
-      icon: Layers,
-      show: true,
-    },
-    {
-      id: 'agent-dashboard',
-      label: 'Agent Desk',
-      icon: LayoutDashboard,
-      show: user?.role === 'agent' || user?.role === 'admin',
-    },
-    {
-      id: 'transporter-dashboard',
-      label: 'Logistics Fleet',
-      icon: Truck,
-      show: user?.role === 'transporter' || user?.role === 'admin',
-    },
-    {
-      id: 'admin-dashboard',
-      label: t.navAdmin,
-      icon: Shield,
-      show: user?.role === 'admin',
-    },
-  ];
+  // Define role-specific navigation links strictly
+  const getNavItems = () => {
+    if (!user) {
+      return [
+        { path: '/', label: 'Home', icon: Store },
+        { path: '/marketplace', label: t.navMarketplace, icon: Store },
+      ];
+    }
+
+    switch (user.role) {
+      case 'farmer':
+        return [
+          { path: '/farmer/dashboard', label: 'Farmer Dashboard', icon: Sprout },
+          { path: '/pooling', label: t.navPooling, icon: Layers },
+        ];
+      case 'buyer':
+        return [
+          { path: '/buyer/dashboard', label: 'Produce Marketplace', icon: ShoppingBag },
+          { path: '/orders', label: 'My Orders', icon: FileCheck2 },
+        ];
+      case 'agent':
+        return [
+          { path: '/agent/dashboard', label: 'Agent Desk', icon: Building2 },
+          { path: '/pooling', label: 'Harvest Pooling', icon: Layers },
+          { path: '/orders', label: 'Orders Oversight', icon: FileCheck2 },
+        ];
+      case 'transporter':
+        return [
+          { path: '/transporter/dashboard', label: 'Logistics Fleet', icon: Truck },
+          { path: '/orders', label: 'Delivery Jobs', icon: FileCheck2 },
+        ];
+      case 'admin':
+        return [
+          { path: '/admin/dashboard', label: 'Administration', icon: Shield },
+          { path: '/marketplace', label: 'Produce Moderation', icon: Store },
+          { path: '/orders', label: 'All Orders', icon: FileCheck2 },
+          { path: '/pooling', label: 'Village Pools', icon: Layers },
+        ];
+      default:
+        return [{ path: '/', label: 'Home', icon: Store }];
+    }
+  };
+
+  const navItems = getNavItems();
+  const showCart = user?.role === 'buyer';
+
+  const handleLogoClick = () => {
+    if (user) {
+      navigate(getRoleDashboardPath(user.role));
+    } else {
+      navigate('/');
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-40 bg-[#F7F5EC]/95 backdrop-blur-md border-b border-[#DCE8D7] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <div className="cursor-pointer" onClick={() => setActiveTab('home')}>
+          <div className="cursor-pointer" onClick={handleLogoClick}>
             <KrishiLogo size="md" />
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigation Links for Active Role Only */}
           <div className="hidden lg:flex items-center gap-1.5">
-            {navItems
-              .filter((item) => item.show)
-              .map((item) => {
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-[#153D2B] text-[#C7F36B] shadow-sm'
-                        : 'text-[#202820]/80 hover:bg-[#DCE8D7]/60 hover:text-[#153D2B]'
-                    }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
+            {navItems.map((item) => {
+              const isActive = currentPath === item.path;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-[#153D2B] text-[#C7F36B] shadow-sm font-bold'
+                      : 'text-[#202820]/80 hover:bg-[#DCE8D7]/60 hover:text-[#153D2B]'
+                  }`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Right Action Controls */}
@@ -156,31 +169,35 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenListingModal, onOpenProfit
               </button>
             </div>
 
-            {/* Cart Button */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 rounded-lg text-[#153D2B] bg-[#DCE8D7]/60 hover:bg-[#DCE8D7] transition-colors"
-              title="View Cart"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {totalCartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#153D2B] text-[#C7F36B] text-[11px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-[#F7F5EC] animate-bounce">
-                  {totalCartCount}
-                </span>
-              )}
-            </button>
+            {/* Cart Button: ONLY displayed for Buyer accounts */}
+            {showCart && (
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-2.5 rounded-lg text-[#153D2B] bg-[#DCE8D7]/60 hover:bg-[#DCE8D7] transition-colors"
+                title="View Buyer Cart"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {totalCartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#153D2B] text-[#C7F36B] text-[11px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-[#F7F5EC] animate-bounce">
+                    {totalCartCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* User Profile / Login / Logout */}
             {user ? (
               <div className="flex items-center gap-2 pl-2 border-l border-[#DCE8D7]">
                 <div className="hidden md:flex flex-col text-right">
                   <span className="text-xs font-bold text-[#153D2B]">{user.full_name}</span>
-                  <span className="text-[10px] capitalize text-[#286443] font-semibold">{user.role}</span>
+                  <span className="text-[10px] capitalize text-[#286443] font-semibold tracking-wide">
+                    {user.role}
+                  </span>
                 </div>
                 <button
                   onClick={logout}
                   className="p-2 text-stone-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Sign Out / Switch Account"
+                  title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -188,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenListingModal, onOpenProfit
             ) : (
               <button
                 onClick={() => onOpenAuthModal && onOpenAuthModal('login')}
-                className="px-3 py-1.5 bg-[#153D2B] hover:bg-[#286443] text-[#C7F36B] rounded-lg text-xs font-bold transition-colors shadow-sm"
+                className="px-4 py-2 bg-[#153D2B] hover:bg-[#286443] text-[#C7F36B] rounded-lg text-xs font-bold transition-colors shadow-sm"
               >
                 Sign In
               </button>
@@ -199,22 +216,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenListingModal, onOpenProfit
 
       {/* Mobile Navigation bar */}
       <div className="lg:hidden flex overflow-x-auto px-4 py-2 bg-[#DCE8D7]/40 border-t border-[#DCE8D7] gap-2">
-        {navItems
-          .filter((item) => item.show)
-          .map((item) => (
+        {navItems.map((item) => {
+          const isActive = currentPath === item.path;
+          return (
             <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              key={item.path}
+              onClick={() => navigate(item.path)}
               className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
-                activeTab === item.id
-                  ? 'bg-[#153D2B] text-[#C7F36B]'
+                isActive
+                  ? 'bg-[#153D2B] text-[#C7F36B] font-bold'
                   : 'bg-white/80 text-[#202820]'
               }`}
             >
               <item.icon className="w-3.5 h-3.5" />
               <span>{item.label}</span>
             </button>
-          ))}
+          );
+        })}
       </div>
     </nav>
   );

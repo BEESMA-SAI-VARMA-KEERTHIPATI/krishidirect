@@ -1,5 +1,20 @@
 export type UserRole = 'farmer' | 'buyer' | 'agent' | 'transporter' | 'admin';
 
+export const ROLE_DASHBOARDS: Record<UserRole, string> = {
+  farmer: '/farmer/dashboard',
+  buyer: '/buyer/dashboard',
+  agent: '/agent/dashboard',
+  transporter: '/transporter/dashboard',
+  admin: '/admin/dashboard',
+};
+
+export const getRoleDashboardPath = (role?: string | null): string => {
+  if (role && role in ROLE_DASHBOARDS) {
+    return ROLE_DASHBOARDS[role as UserRole];
+  }
+  return '/';
+};
+
 export interface User {
   id: number;
   full_name: string;

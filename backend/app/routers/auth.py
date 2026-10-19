@@ -59,22 +59,32 @@ def get_demo_accounts():
 
 @router.post("/register", response_model=TokenResponse)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == user_in.email).first()
+    clean_email = user_in.email.lower().strip()
+    
+    # Restrict permitted self-registration roles (admin cannot be self-registered)
+    allowed_roles = ["farmer", "buyer", "agent", "transporter"]
+    if user_in.role == "admin" or user_in.role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Administrator accounts cannot be self-registered. Permitted roles: {', '.join(allowed_roles)}.",
+        )
+    
+    existing = db.query(User).filter(User.email.ilike(clean_email)).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="An account with this email address already exists.",
+            detail="An account with this email address already exists. Please sign in instead.",
         )
     
     hashed_pwd = hash_password(user_in.password)
     user = User(
-        full_name=user_in.full_name,
-        email=user_in.email,
+        full_name=user_in.full_name.strip(),
+        email=clean_email,
         hashed_password=hashed_pwd,
         role=user_in.role,
-        phone=user_in.phone,
-        village=user_in.village,
-        district=user_in.district,
+        phone=user_in.phone.strip() if user_in.phone else None,
+        village=user_in.village.strip() if user_in.village else None,
+        district=user_in.district.strip() if user_in.district else None,
         state=user_in.state or "Telangana",
         preferred_lang=user_in.preferred_lang or "en",
         speech_lang=user_in.speech_lang or "en-IN",
@@ -89,16 +99,17 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(creds: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == creds.email).first()
+    clean_email = creds.email.lower().strip()
+    user = db.query(User).filter(User.email.ilike(clean_email)).first()
     if not user or not verify_password(creds.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail="Invalid email or password. Please verify your credentials and try again.",
         )
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is deactivated. Please contact platform administrator.",
+            detail="Your account is currently deactivated. Please contact platform support.",
         )
 
     token = create_access_token(data={"sub": str(user.id), "role": user.role, "email": user.email})
