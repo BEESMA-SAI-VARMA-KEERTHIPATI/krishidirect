@@ -371,11 +371,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {(demoAccounts.length > 0
                     ? demoAccounts
                     : [
-                        { role: 'farmer', email: 'ramesh.farmer@krishidirect.in', password: 'Password123!', name: 'Ramesh Patel (Farmer)' },
-                        { role: 'buyer', email: 'priya.buyer@krishidirect.in', password: 'Password123!', name: 'Priya Sharma (Buyer)' },
-                        { role: 'agent', email: 'suresh.agent@krishidirect.in', password: 'Password123!', name: 'Suresh Rao (Agent)' },
-                        { role: 'transporter', email: 'vikram.transporter@krishidirect.in', password: 'Password123!', name: 'Vikram Fleet (Transporter)' },
-                        { role: 'admin', email: 'admin@krishidirect.in', password: 'AdminPassword123!', name: 'Administrator (Admin)' },
+                        { role: 'farmer', email: 'farmer@demo.com', password: 'demo1234', name: 'Demo Farmer' },
+                        { role: 'buyer', email: 'buyer@demo.com', password: 'demo1234', name: 'Demo Buyer' },
+                        { role: 'agent', email: 'agent@demo.com', password: 'demo1234', name: 'Demo Village Agent' },
+                        { role: 'transporter', email: 'transporter@demo.com', password: 'demo1234', name: 'Demo Transporter' },
+                        { role: 'admin', email: 'admin@demo.com', password: 'demo1234', name: 'Demo Admin' },
                       ]
                   ).map((acc) => (
                     <div

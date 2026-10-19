@@ -92,7 +92,75 @@ def seed_database():
         voice_lang="en-IN"
     )
 
-    db.add_all([farmer, buyer, agent, transporter, admin])
+    # Demo aliases
+    demo_pwd = hash_password("demo1234")
+    farmer_demo = User(
+        full_name="Demo Farmer",
+        email="farmer@demo.com",
+        hashed_password=demo_pwd,
+        role="farmer",
+        phone="+91 98480 12345",
+        village="Jangaon Rural",
+        district="Warangal",
+        state="Telangana",
+        preferred_lang="en",
+        speech_lang="en-IN",
+        voice_lang="en-IN"
+    )
+    buyer_demo = User(
+        full_name="Demo Buyer",
+        email="buyer@demo.com",
+        hashed_password=demo_pwd,
+        role="buyer",
+        phone="+91 99887 65432",
+        village="Banjara Hills",
+        district="Hyderabad",
+        state="Telangana",
+        preferred_lang="en",
+        speech_lang="en-IN",
+        voice_lang="en-IN"
+    )
+    agent_demo = User(
+        full_name="Demo Village Agent",
+        email="agent@demo.com",
+        hashed_password=demo_pwd,
+        role="agent",
+        phone="+91 91234 56789",
+        village="Jangaon Mandi Center",
+        district="Warangal",
+        state="Telangana",
+        preferred_lang="te",
+        speech_lang="te-IN",
+        voice_lang="te-IN"
+    )
+    transporter_demo = User(
+        full_name="Demo Transporter",
+        email="transporter@demo.com",
+        hashed_password=demo_pwd,
+        role="transporter",
+        phone="+91 94401 98765",
+        village="Transport Hub, NH163",
+        district="Warangal",
+        state="Telangana",
+        preferred_lang="hi",
+        speech_lang="hi-IN",
+        voice_lang="hi-IN"
+    )
+    admin_demo = User(
+        full_name="Demo Admin",
+        email="admin@demo.com",
+        hashed_password=demo_pwd,
+        role="admin",
+        phone="+91 80000 00001",
+        village="Headquarters",
+        district="Hyderabad",
+        state="Telangana",
+        preferred_lang="en",
+        speech_lang="en-IN",
+        voice_lang="en-IN"
+    )
+
+    db.add_all([farmer, buyer, agent, transporter, admin, farmer_demo, buyer_demo, agent_demo, transporter_demo, admin_demo])
     db.commit()
     db.refresh(farmer)
     db.refresh(buyer)

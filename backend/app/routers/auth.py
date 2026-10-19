@@ -12,6 +12,46 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 DEMO_ACCOUNTS_INFO = [
     {
         "role": "farmer",
+        "email": "farmer@demo.com",
+        "password": "demo1234",
+        "name": "Demo Farmer",
+        "location": "Warangal, Telangana",
+        "crops": "Tomatoes, Rice, Green Chillies"
+    },
+    {
+        "role": "buyer",
+        "email": "buyer@demo.com",
+        "password": "demo1234",
+        "name": "Demo Buyer",
+        "location": "Hyderabad, Telangana",
+        "type": "Supermarket Sourcing Manager"
+    },
+    {
+        "role": "agent",
+        "email": "agent@demo.com",
+        "password": "demo1234",
+        "name": "Demo Village Agent",
+        "location": "Jangaon Cluster",
+        "focus": "Farmer Onboarding & Harvest Pooling"
+    },
+    {
+        "role": "transporter",
+        "email": "transporter@demo.com",
+        "password": "demo1234",
+        "name": "Demo Transporter",
+        "location": "Warangal-Hyderabad Corridor",
+        "fleet": "Electric 3-Ton & 5-Ton Cargo"
+    },
+    {
+        "role": "admin",
+        "email": "admin@demo.com",
+        "password": "demo1234",
+        "name": "Demo Administrator",
+        "location": "Central Operations",
+        "access": "Full System Governance"
+    },
+    {
+        "role": "farmer",
         "email": "ramesh.farmer@krishidirect.in",
         "password": "Password123!",
         "name": "Ramesh Patel (Farmer)",

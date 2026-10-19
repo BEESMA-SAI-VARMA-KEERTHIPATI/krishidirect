@@ -1,4 +1,10 @@
-const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '') + '/api';
+const API_BASE = (
+  import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+    : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+        ? 'https://krishidirect-s2s4.onrender.com'
+        : '')
+) + '/api';
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('krishi_token');
