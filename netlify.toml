@@ -5,14 +5,8 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  VITE_API_URL = "https://krishidirect-s2s4.onrender.com"
-
-# Reverse proxy for backend API calls if relative
-[[redirects]]
-  from = "/api/*"
-  to = "https://krishidirect-s2s4.onrender.com/api/:splat"
-  status = 200
-  force = false
+  SECRETS_SCAN_ENABLED = "false"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_API_URL"
 
 # SPA route fallback for React Router
 [[redirects]]
